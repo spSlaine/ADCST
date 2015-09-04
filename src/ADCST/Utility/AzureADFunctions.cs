@@ -92,28 +92,7 @@ namespace ADCST.Utility
 
                 try
                 {
-                    IPagedCollection<IDirectoryObject> GroupMembers = retrievedGroupFetcher.Members.ExecuteAsync().Result;
-                    do
-                    {
-                        List<IDirectoryObject> directoryObjects = GroupMembers.CurrentPage.ToList();
-
-                        foreach (IDirectoryObject directoryObject in directoryObjects)
-                        {
-                            if (directoryObject is User)
-                            {
-                                DirectoryObjects.Add(Tuple.Create("user", directoryObject));    
-                            }
-                            if (directoryObject is Contact)
-                            {
-                                DirectoryObjects.Add(Tuple.Create("contact", directoryObject));
-                            }
-                            if (directoryObject is Group)
-                            {
-                                DirectoryObjects.Add(Tuple.Create("group", directoryObject));
-                            }
-                        }
-                        GroupMembers = GroupMembers.GetNextPageAsync().Result;
-                    } while (GroupMembers != null);
+                    ExpandADGroup(DirectoryObjects, retrievedGroupFetcher);
                 }
                 catch (Exception ex)
                 {
@@ -127,6 +106,34 @@ namespace ADCST.Utility
             {
                 return DirectoryObjects;
             }
+        }
+
+        private static void ExpandADGroup(List<Tuple<string, IDirectoryObject>> DirectoryObjects, IGroupFetcher retrievedGroupFetcher)
+        {
+            IPagedCollection<IDirectoryObject> GroupMembers = retrievedGroupFetcher.Members.ExecuteAsync().Result;
+
+            do
+            {
+                List<IDirectoryObject> directoryObjects = GroupMembers.CurrentPage.ToList();
+
+                foreach (IDirectoryObject directoryObject in directoryObjects)
+                {
+                    if (directoryObject is User)
+                    {
+                        DirectoryObjects.Add(Tuple.Create("user", directoryObject));
+                    }
+                    if (directoryObject is Contact)
+                    {
+                        DirectoryObjects.Add(Tuple.Create("contact", directoryObject));
+                    }
+                    if (directoryObject is Group)
+                    {
+                        DirectoryObjects.Add(Tuple.Create("group", directoryObject));
+                        ExpandADGroup(DirectoryObjects, (IGroupFetcher)directoryObject);
+                    }
+                }
+                GroupMembers = GroupMembers.GetNextPageAsync().Result;
+            } while (GroupMembers != null);
         }
 
         public string TenantDetails (ActiveDirectoryClient ADClient, Logger Logger, IConfiguration Config)
